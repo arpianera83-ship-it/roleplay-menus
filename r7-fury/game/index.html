@@ -31,11 +31,22 @@ button{font:inherit}.primary,.secondary{cursor:pointer;border-radius:8px;padding
 .levelSplash{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:#02071199;opacity:0;pointer-events:none;transition:.2s}
 .levelSplash.show{opacity:1}.levelCard{padding:28px 38px;text-align:center;background:#03101bea;border:1px solid #75eaff88;box-shadow:0 0 45px #49caff22}.levelCard b{font-size:clamp(34px,8vw,64px);letter-spacing:.12em}.levelCard span{display:block;margin-top:8px;color:#b8eaff;font:700 12px monospace;letter-spacing:.1em}
 @media(pointer:coarse),(max-width:800px){.mobileV5{display:block}.controls{display:none!important}}
+
+.backMenu{position:fixed;top:16px;left:16px;z-index:90;display:flex;align-items:center;gap:8px;
+padding:9px 13px;border:1px solid rgba(117,234,255,.45);border-radius:7px;
+background:rgba(3,13,23,.82);color:#c9f7ff;text-decoration:none;font:700 12px monospace;
+letter-spacing:.06em;box-shadow:0 0 18px rgba(72,195,255,.10);backdrop-filter:blur(5px)}
+.backMenu:hover,.backMenu:focus{border-color:#75eaff;background:rgba(9,32,48,.94);
+box-shadow:0 0 24px rgba(117,234,255,.22);outline:none}
+@media(max-width:800px){.backMenu{top:9px;left:9px;padding:8px 10px;font-size:11px}}
+
 </style>
 </head>
 <body>
+<a class="backMenu" href="../" aria-label="Вернуться в главное меню">← ГЛАВНОЕ МЕНЮ</a>
+
 <main class="shell">
-<div class="top"><span class="ok">● SIMULATION ONLINE</span><span>R7 «ФУРИЯ» // ИВО</span><span>COMBAT TRAINING // v6 // BOSS PROTOCOL</span></div>
+<div class="top"><span class="ok">● SIMULATION ONLINE</span><span>R7 «ФУРИЯ» // ИВО</span><span>COMBAT TRAINING // v7 // VISIBLE FIRE</span></div>
 <section class="head"><small>ТРЕНИРОВОЧНЫЙ ПРОТОКОЛ // 07</small><h1>БОЕВОЙ СИМУЛЯТОР</h1><p>Пять попаданий — и «Фурия» превращается в очень дорогой космический мусор.</p></section>
 <section class="hud">
 <div class="box"><small>СЧЁТ</small><b id="score">000000</b></div>
@@ -69,7 +80,7 @@ window.R7_IVO_AUDIO = {"game_ammo01": "data:audio/mpeg;base64,SUQzBAAAAAEBflRTU0
 (()=>{
 'use strict';
 const cv=document.getElementById('cv'),g=cv.getContext('2d'),W=cv.width,H=cv.height,$=id=>document.getElementById(id),keys={};
-let running=false,paused=false,last=0,score=0,hits=0,ammo=30,level=1,enemyT=0,cometT=0,bonusT=0,shotT=0,msgT=0,shield=0,raf=0,pilot='',killStreak=0,comboClock=0,rareClock=16+Math.random()*14,kills=0,levelKills=0,enemyShots=[],joyX=0,joyY=0,mobileFire=false,boss=null,bossSpawned=false;
+let running=false,paused=false,last=0,score=0,hits=0,ammo=30,level=1,enemyT=0,cometT=0,bonusT=0,shotT=0,msgT=0,shield=0,raf=0,pilot='',killStreak=0,comboClock=0,rareClock=16+Math.random()*14,kills=0,levelKills=0,enemyShots=[],joyX=0,joyY=0,mobileFire=false,boss=null,bossSpawned=false,invuln=0;
 let bullets=[],enemies=[],comets=[],bonuses=[],particles=[];
 const stars=Array.from({length:130},()=>({x:Math.random()*W,y:Math.random()*H,s:.4+Math.random()*1.5}));
 const ship={x:105,y:250,w:74,h:38,speed:330,flash:0};
@@ -177,23 +188,23 @@ async function renderRank(){
 }
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function hud(){$('score').textContent=String(Math.floor(score)).padStart(6,'0');$('hp').textContent='♥ '.repeat(Math.max(0,5-hits)).trim()||'—';$('hp').classList.toggle('danger',hits>=3);$('ammo').textContent=ammo;if($('mAmmo'))$('mAmmo').textContent='AMMO '+ammo;$('level').textContent=String(level).padStart(2,'0');$('pilotHud').textContent=pilot||'—'}
-function reset(){score=0;hits=0;ammo=30;level=1;shield=0;enemyT=.6;cometT=1.7;bonusT=4;shotT=msgT=0;killStreak=0;comboClock=0;rareClock=16+Math.random()*14;kills=0;levelKills=0;enemyShots=[];joyX=joyY=0;mobileFire=false;boss=null;bossSpawned=false;bullets=[];enemies=[];comets=[];bonuses=[];particles=[];ship.x=105;ship.y=250;ship.flash=0;hud()}
+function reset(){score=0;hits=0;ammo=30;level=1;shield=0;enemyT=.6;cometT=1.7;bonusT=4;shotT=msgT=0;killStreak=0;comboClock=0;rareClock=16+Math.random()*14;kills=0;levelKills=0;enemyShots=[];joyX=joyY=0;mobileFire=false;boss=null;bossSpawned=false;invuln=0;bullets=[];enemies=[];comets=[];bonuses=[];particles=[];ship.x=105;ship.y=250;ship.flash=0;hud()}
 function start(){let n=$('pilot').value.trim().replace(/\s+/g,' ').slice(0,18);if(!n){$('ivo').textContent='Имя пилота. Мне нужно имя. «Эй, ты» в журнал не помещается.';$('pilot').focus();return}pilot=n;cancelAnimationFrame(raf);reset();running=true;paused=false;$('start').classList.add('hide');$('over').classList.add('hide');$('ivo').textContent='Пилот '+pilot+' зарегистрирован. Постарайтесь не сделать это имя синонимом катастрофы.';const sc=pick('start');if(sc)playVoice(sc,priority.start);showLevel(1);last=performance.now();raf=requestAnimationFrame(loop)}
 function end(){if(!running)return;running=false;cancelAnimationFrame(raf);const oldBest=Math.max(0,...globalRank.map(r=>Number(r.score)||0));const isRecord=Math.floor(score)>oldBest;saveRank();$('overText').textContent=pilot+', итоговый счёт: '+Math.floor(score)+'. Пять попаданий. Симулятор считает корабль потерянным. Я — тоже.';$('over').classList.remove('hide');if(isRecord){setTimeout(()=>{if(!running){$('ivo').textContent=comments.record[Math.floor(Math.random()*comments.record.length)];const rc=pick('record');if(rc)playVoice(rc,priority.record)}},2200)}}
 function rect(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
 function boom(px,py,n=14,col='#ffbd83'){for(let i=0;i<n;i++)particles.push({x:px,y:py,vx:(Math.random()-.5)*260,vy:(Math.random()-.5)*260,t:.35+Math.random()*.65,col})}
 function fire(){if(!running||paused||shotT>0)return;if(ammo<=0){if(msgT<=0)say('empty',true);shotT=.35;return}ammo--;bullets.push({x:ship.x+70,y:ship.y+18,w:20,h:4});shotT=.15;hud()}
 function spawnBonus(){let roll=Math.random(),type=roll<.56?'ammo':roll<.78?'repair':'shield';bonuses.push({type,x:W+35,y:35+Math.random()*(H-70),w:30,h:30,v:125+Math.random()*35,rot:0})}
-function damage(px,py){if(shield>0){boom(px,py,12,'#75eaff');say('shieldhit',true);return}hits++;killStreak=0;comboClock=0;ship.flash=.24;boom(px,py,20);sayDamage(hits);hud();if(hits>=5)end()}
+function damage(px,py){if(shield>0){boom(px,py,12,'#75eaff');say('shieldhit',true);return}if(invuln>0)return;invuln=.72;hits++;killStreak=0;comboClock=0;ship.flash=.34;boom(px,py,20);sayDamage(hits);hud();if(hits>=5)end()}
 const LEVEL_NEED=[0,16,22,28,34,9999];
 const LEVEL_DESC=['','РАЗВЕДЫВАТЕЛЬНЫЕ ЦЕЛИ // БРОНЯ 1','БРОНИРОВАННЫЕ ЦЕЛИ // БРОНЯ 2','ВРАЖЕСКИЙ ОГОНЬ АКТИВЕН','ОХОТНИКИ ПРЕСЛЕДУЮТ ФУРИЮ','ТЯЖЁЛЫЙ КРЕЙСЕР // БОСС'];
 function showLevel(n){$('levelTitle').textContent='LEVEL '+n;$('levelDesc').textContent=LEVEL_DESC[n];$('levelSplash').classList.add('show');setTimeout(()=>$('levelSplash').classList.remove('show'),1250);if(n>1)say('level',true)}
 function advanceLevel(){if(level<5){level++;levelKills=0;showLevel(level);if(level===5)setTimeout(spawnBoss,650)}}
 function spawnBoss(){if(bossSpawned)return;bossSpawned=true;boss={x:W-180,y:H*.5-55,w:150,h:110,hp:5,maxHp:5,dir:1,shoot:.7,flash:0};$('ivo').textContent='Тяжёлый крейсер обнаружен. Пять энергетических контуров. Постарайтесь не проверять их корпусом «Фурии».';msgT=3}
 
-function enemyFire(e){let sx=e.x,sy=e.y+e.h/2,tx=ship.x+ship.w/2,ty=ship.y+ship.h/2,dx=tx-sx,dy=ty-sy,d=Math.hypot(dx,dy)||1,sp=270;enemyShots.push({x:sx,y:sy,w:10,h:5,vx:dx/d*sp,vy:dy/d*sp})}
+function enemyFire(e){let sx=e.x,sy=e.y+e.h/2,tx=ship.x+ship.w/2,ty=ship.y+ship.h/2,dx=tx-sx,dy=ty-sy,d=Math.hypot(dx,dy)||1,sp=205;enemyShots.push({x:sx,y:sy,w:22,h:10,vx:dx/d*sp,vy:dy/d*sp,life:0,trail:[]});e.muzzle=.16}
 function update(dt){
-msgT=Math.max(0,msgT-dt);shotT=Math.max(0,shotT-dt);ship.flash=Math.max(0,ship.flash-dt);shield=Math.max(0,shield-dt);if(mobileFire)fire();comboClock=Math.max(0,comboClock-dt);if(comboClock<=0)killStreak=0;rareClock-=dt;if(rareClock<=0){if(msgT<=0 && (!currentVoice||currentVoice.paused))say('rare');rareClock=18+Math.random()*18;}
+msgT=Math.max(0,msgT-dt);shotT=Math.max(0,shotT-dt);ship.flash=Math.max(0,ship.flash-dt);shield=Math.max(0,shield-dt);invuln=Math.max(0,invuln-dt);if(mobileFire)fire();comboClock=Math.max(0,comboClock-dt);if(comboClock<=0)killStreak=0;rareClock-=dt;if(rareClock<=0){if(msgT<=0 && (!currentVoice||currentVoice.paused))say('rare');rareClock=18+Math.random()*18;}
 let dx=(keys.ArrowRight||keys.KeyD?1:0)-(keys.ArrowLeft||keys.KeyA?1:0),dy=(keys.ArrowDown||keys.KeyS?1:0)-(keys.ArrowUp||keys.KeyW?1:0);if(Math.abs(joyX)>.03||Math.abs(joyY)>.03){dx=joyX;dy=joyY}let m=Math.hypot(dx,dy)||1;
 ship.x=Math.max(5,Math.min(W-ship.w-5,ship.x+dx/m*ship.speed*dt));ship.y=Math.max(5,Math.min(H-ship.h-5,ship.y+dy/m*ship.speed*dt));if(keys.Space)fire();
 score+=dt*4;if(level<5&&levelKills>=LEVEL_NEED[level])advanceLevel()
@@ -219,7 +230,7 @@ bullets.forEach(b=>b.x+=680*dt);bullets=bullets.filter(b=>b.x<W+25);if(boss){
  for(let h=0;h<b.maxHp;h++){g.fillStyle=h<b.hp?'#8df6ff':'#351b24';g.fillRect(25+h*22,-9,15,4)}
  g.restore()
 }
-enemies.forEach(e=>{e.x-=e.v*dt;e.flash=Math.max(0,e.flash-dt);if(e.hunter){let target=ship.y+ship.h/2-(e.y+e.h/2);e.vy+=Math.sign(target)*80*dt;e.vy=Math.max(-95,Math.min(95,e.vy));e.y+=e.vy*dt}else e.y+=Math.sin(performance.now()/450+e.p)*20*dt;if(level>=3){e.shoot-=dt;if(e.shoot<=0&&e.x<W-50&&e.x>170){enemyFire(e);e.shoot=1.2+Math.random()*1.8}}});enemyShots.forEach(q=>{g.save();g.fillStyle='#ff4b62';g.shadowBlur=14;g.shadowColor='#ff334f';g.fillRect(q.x,q.y,q.w,q.h);g.restore()});
+enemies.forEach(e=>{e.x-=e.v*dt;e.flash=Math.max(0,e.flash-dt);e.muzzle=Math.max(0,(e.muzzle||0)-dt);if(e.hunter){let target=ship.y+ship.h/2-(e.y+e.h/2);e.vy+=Math.sign(target)*80*dt;e.vy=Math.max(-95,Math.min(95,e.vy));e.y+=e.vy*dt}else e.y+=Math.sin(performance.now()/450+e.p)*20*dt;if(level>=3){e.shoot-=dt;if(e.shoot<=0&&e.x<W-50&&e.x>170){enemyFire(e);e.shoot=1.2+Math.random()*1.8}}});enemyShots.forEach(q=>{g.save();for(let i=0;i<q.trail.length;i++){let t=q.trail[i],a=(i+1)/q.trail.length*.32;g.globalAlpha=a;g.fillStyle='#ff5a36';g.beginPath();g.arc(t.x,t.y+q.h/2,3+i*.35,0,Math.PI*2);g.fill()}g.globalAlpha=1;g.shadowBlur=24;g.shadowColor='#ff3b22';g.fillStyle='#ff5b2e';g.beginPath();g.ellipse(q.x+q.w/2,q.y+q.h/2,q.w/2,q.h/2,0,0,Math.PI*2);g.fill();g.shadowBlur=10;g.fillStyle='#fff3b0';g.beginPath();g.ellipse(q.x+q.w/2,q.y+q.h/2,q.w*.22,q.h*.28,0,0,Math.PI*2);g.fill();g.restore()});
 comets.forEach(o=>{o.x-=o.v*dt;o.rot+=dt*1.8});bonuses.forEach(b=>{b.x-=b.v*dt;b.rot+=dt*2});
 for(let bi=bullets.length-1;bi>=0;bi--){let used=false;
 if(boss&&rect(bullets[bi],boss)){let b=bullets[bi];bullets.splice(bi,1);boss.hp--;boss.flash=.2;boom(b.x,b.y,10,'#9eefff');if(boss.hp<=0){boom(boss.x+boss.w/2,boss.y+boss.h/2,45,'#ffb3c0');score+=1000;$('ivo').textContent='Тяжёлый крейсер уничтожен. Признаю: это было почти профессионально.';msgT=3;boss=null}else{$('ivo').textContent='Попадание по крейсеру. Энергетические контуры: '+boss.hp+' из 5.';msgT=1.5}continue}for(let ei=enemies.length-1;ei>=0;ei--)if(rect(bullets[bi],enemies[ei])){let e=enemies[ei];bullets.splice(bi,1);e.hp--;e.flash=.16;boom(e.x,e.y,7,'#9eefff');if(e.hp<=0){enemies.splice(ei,1);boom(e.x,e.y);score+=55+level*10;kills++;levelKills++;killStreak++;comboClock=4.5;if(killStreak>=3){say('combo',true);killStreak=0}else say('kill')}used=true;break}if(used)continue;for(let ci=comets.length-1;ci>=0;ci--)if(rect(bullets[bi],comets[ci])){bullets.splice(bi,1);comets[ci].r-=7;comets[ci].w=comets[ci].h=comets[ci].r*2;if(comets[ci].r<11){boom(comets[ci].x,comets[ci].y);comets.splice(ci,1);score+=18}break}}
@@ -234,7 +245,7 @@ if(boss){
  boss.shoot-=dt;
  if(boss.shoot<=0){enemyFire({x:boss.x,y:boss.y+boss.h*.5,h:0});boss.shoot=.75+Math.random()*.7}
 }
-for(let i=enemyShots.length-1;i>=0;i--){let q=enemyShots[i];q.x+=q.vx*dt;q.y+=q.vy*dt;if(q.x<-30||q.y<-30||q.y>H+30){enemyShots.splice(i,1);continue}if(rect(ship,q)){enemyShots.splice(i,1);damage(q.x,q.y)}}
+for(let i=enemyShots.length-1;i>=0;i--){let q=enemyShots[i];q.life+=dt;q.trail.push({x:q.x,y:q.y});if(q.trail.length>9)q.trail.shift();q.x+=q.vx*dt;q.y+=q.vy*dt;if(q.x<-40||q.y<-40||q.y>H+40){enemyShots.splice(i,1);continue}if(rect(ship,q)){enemyShots.splice(i,1);damage(q.x,q.y)}}
 for(let i=comets.length-1;i>=0;i--){let o=comets[i];if(rect(ship,o)){comets.splice(i,1);damage(o.x,o.y)}else if(o.x<-90)comets.splice(i,1)}
 for(let i=bonuses.length-1;i>=0;i--){let b=bonuses[i];if(rect(ship,b)){if(b.type==='ammo'){ammo+=15;say('ammo',true)}else if(b.type==='repair'){if(hits>0)hits--;say('repair',true)}else{shield=7;say('shield',true)}score+=15;boom(b.x,b.y,12,b.type==='ammo'?'#ffd477':b.type==='repair'?'#7af0b0':'#78eaff');bonuses.splice(i,1);hud()}else if(b.x<-50)bonuses.splice(i,1)}
 particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.97;p.vy*=.97;p.t-=dt});particles=particles.filter(p=>p.t>0);hud()
@@ -270,6 +281,7 @@ enemies.forEach(e=>{
  g.fillStyle='#32131d';g.fillRect(17,10,13,8);
  g.fillStyle='#ffb0ba';g.fillRect(46,13,5,2);
  if(e.maxHp>1){g.fillStyle='#dffaff';for(let h=0;h<e.hp;h++)g.fillRect(13+h*12,-8,8,3)}
+ if(e.muzzle>0){g.shadowBlur=22;g.shadowColor='#ff6a32';g.fillStyle='#fff0a8';g.beginPath();g.arc(52,14,7,0,Math.PI*2);g.fill();}
  g.restore()
 });
 comets.forEach(o=>{g.save();g.translate(o.x+o.r,o.y+o.r);g.rotate(o.rot);g.fillStyle='#91827c';g.beginPath();for(let i=0;i<10;i++){let a=i/10*Math.PI*2,rr=o.r*(.82+(i%3)*.06),px=Math.cos(a)*rr,py=Math.sin(a)*rr;i?g.lineTo(px,py):g.moveTo(px,py)}g.closePath();g.fill();g.fillStyle='#5c5350';g.beginPath();g.arc(-o.r*.18,-o.r*.15,o.r*.2,0,Math.PI*2);g.fill();g.restore()});
